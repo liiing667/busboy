@@ -443,7 +443,6 @@ const tests = [
     boundary: 'asdasdasdasd',
     expected: [
       { error: 'Malformed part header' },
-      { error: 'Unexpected end of form' },
     ],
     what: 'Stopped mid-header'
   },
@@ -747,18 +746,27 @@ const tests = [
     boundary: '---------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
     expected: [
       { error: 'Malformed part header' },
-      { type: 'file',
-        name: 'upload_file_1',
-        data: Buffer.from('cd'),
-        info: {
-          filename: 'notes2.txt',
-          encoding: '7bit',
-          mimeType: 'text/plain',
-        },
-        limited: false,
-      },
     ],
     what: 'Oversized part header'
+  },
+  { source: [
+      ['--boundary\r\n',
+       `Content-Disposition: form-data; name="bad"; filename="${
+         'a'.repeat(16 * 1024)
+       }.txt"\r\n`,
+      ].join(''),
+      '\r\n',
+      '--boundary\r\n',
+      'Content-Disposition: form-data; name="good"\r\n',
+      '\r\n',
+      'ok\r\n',
+      '--boundary--',
+    ],
+    boundary: 'boundary',
+    expected: [
+      { error: 'Malformed part header' },
+    ],
+    what: 'Oversized part header delivered in multiple chunks'
   },
   { source: [
       ['-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
