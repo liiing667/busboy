@@ -166,7 +166,7 @@ This function can throw exceptions if there is something wrong with the values i
 
 ## (Special) Parser stream events
 
-* **file**(< _string_ >name, < _Readable_ >stream, < _object_ >info) - Emitted for each new file found. `name` contains the form field name. `stream` is a _Readable_ stream containing the file's data. No transformations/conversions (e.g. base64 to raw binary) are done on the file's data. `info` contains the following properties:
+* **file**(< _string_ >name, < _Readable_ >stream, < _object_ >info) - Emitted for each new file found. `name` contains the form field name. `stream` is a _Readable_ stream containing the file's data, decoded according to the part's `'Content-Transfer-Encoding'` value (for example, a `base64` part is converted to raw binary). Parts with an unsupported transfer encoding are rejected with a parser error. `info` contains the following properties:
 
     * `filename` - _string_ - If supplied, this contains the file's filename. **WARNING:** You should almost _never_ use this value as-is (especially if you are using `preservePath: true` in your `config`) as it could contain malicious input. You are better off generating your own (safe) filenames, or at the very least using a hash of the filename.
 
