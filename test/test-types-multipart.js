@@ -867,6 +867,305 @@ const tests = [
     ],
     what: 'Empty part'
   },
+  { source: [
+      ['-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="plain_0"; filename="/etc/passwd"',
+       'Content-Type: application/octet-stream',
+       '',
+       'A',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="plain_1"; filename="C:\\Windows\\win.ini"',
+       'Content-Type: application/octet-stream',
+       '',
+       'B',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="plain_2"; filename="../../relative/dir/evil.txt"',
+       'Content-Type: application/octet-stream',
+       '',
+       'C',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k--'
+      ].join('\r\n')
+    ],
+    boundary: '---------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+    expected: [
+      { type: 'file',
+        name: 'plain_0',
+        data: Buffer.from('A'),
+        info: {
+          filename: 'passwd',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+      { type: 'file',
+        name: 'plain_1',
+        data: Buffer.from('B'),
+        info: {
+          filename: 'win.ini',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+      { type: 'file',
+        name: 'plain_2',
+        data: Buffer.from('C'),
+        info: {
+          filename: 'evil.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+    ],
+    what: 'Plain filename path components are reduced to a basename'
+  },
+  { source: [
+      ['-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="star_0"; filename*=utf-8\'\'%2Fetc%2Fpasswd',
+       'Content-Type: application/octet-stream',
+       '',
+       'A',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="star_1"; filename*=utf-8\'\'C%3A%5CWindows%5Cwin.ini',
+       'Content-Type: application/octet-stream',
+       '',
+       'B',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="star_2"; '
+         + 'filename*=utf-8\'\'..%2F..%2Frelative%2Fdir%2Fevil.txt',
+       'Content-Type: application/octet-stream',
+       '',
+       'C',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="star_3"; filename*=utf-8\'\'..%5C..%5Cevil.exe',
+       'Content-Type: application/octet-stream',
+       '',
+       'D',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k--'
+      ].join('\r\n')
+    ],
+    boundary: '---------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+    expected: [
+      { type: 'file',
+        name: 'star_0',
+        data: Buffer.from('A'),
+        info: {
+          filename: 'passwd',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+      { type: 'file',
+        name: 'star_1',
+        data: Buffer.from('B'),
+        info: {
+          filename: 'win.ini',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+      { type: 'file',
+        name: 'star_2',
+        data: Buffer.from('C'),
+        info: {
+          filename: 'evil.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+      { type: 'file',
+        name: 'star_3',
+        data: Buffer.from('D'),
+        info: {
+          filename: 'evil.exe',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+    ],
+    what: 'Decoded filename* path components are reduced to a basename'
+  },
+  { source: [
+      ['-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="both"; filename="/plain/safe.txt"; '
+         + 'filename*=utf-8\'\'%2Fencoded%2Fsafe.txt',
+       'Content-Type: application/octet-stream',
+       '',
+       'A',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k--'
+      ].join('\r\n')
+    ],
+    boundary: '---------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+    expected: [
+      { type: 'file',
+        name: 'both',
+        data: Buffer.from('A'),
+        info: {
+          filename: 'safe.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+    ],
+    what: 'filename* takes precedence and is sanitized like the plain form'
+  },
+  { source: [
+      ['-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="plain_unicode"; filename="/tmp/n\u00e4me \u6587\u4ef6.txt"',
+       'Content-Type: application/octet-stream',
+       '',
+       'A',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="star_unicode"; '
+         + 'filename*=utf-8\'\'%2Ftmp%2Fn%C3%A4me%20%E6%96%87%E4%BB%B6.txt',
+       'Content-Type: application/octet-stream',
+       '',
+       'B',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k--'
+      ].join('\r\n')
+    ],
+    boundary: '---------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+    expected: [
+      { type: 'file',
+        name: 'plain_unicode',
+        data: Buffer.from('A'),
+        info: {
+          filename: 'näme 文件.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+      { type: 'file',
+        name: 'star_unicode',
+        data: Buffer.from('B'),
+        info: {
+          filename: 'näme 文件.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+    ],
+    what: 'Normal Unicode filenames are preserved by both filename forms'
+  },
+  { source: [
+      // A raw NUL inside a part header is not a valid field character and must
+      // be rejected by the header parser before it can reach basename().
+      [Buffer.from('-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k\r\n'),
+       Buffer.from('Content-Disposition: form-data; '
+                   + 'name="nul_raw"; filename="/tmp/evil\u0000.txt"\r\n'),
+       Buffer.from('Content-Type: application/octet-stream\r\n'),
+       Buffer.from('\r\n'),
+       Buffer.from('A\r\n'),
+       Buffer.from('-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k\r\n'),
+       Buffer.from('Content-Disposition: form-data; name="after"; filename="ok.txt"\r\n'),
+       Buffer.from('Content-Type: application/octet-stream\r\n'),
+       Buffer.from('\r\n'),
+       Buffer.from('B\r\n'),
+       Buffer.from('-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k--\r\n'),
+      ]
+    ],
+    boundary: '---------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+    expected: [
+      { error: 'Malformed part header' },
+      { type: 'file',
+        name: 'after',
+        data: Buffer.from('B'),
+        info: {
+          filename: 'ok.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+    ],
+    what: 'Raw NUL byte in a filename header is rejected'
+  },
+  { source: [
+      ['-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="nul_star"; filename*=utf-8\'\'%2Ftmp%2Fevil%00.txt',
+       'Content-Type: application/octet-stream',
+       '',
+       'B',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k--'
+      ].join('\r\n')
+    ],
+    boundary: '---------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+    expected: [
+      { type: 'file',
+        name: 'nul_star',
+        data: Buffer.from('B'),
+        info: {
+          filename: 'evil.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+    ],
+    what: 'Percent-encoded NUL in filename* is stripped with its path'
+  },
+  { source: [
+      ['-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="keep_plain"; filename="/keep/this/plain.txt"',
+       'Content-Type: application/octet-stream',
+       '',
+       'A',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+       'Content-Disposition: form-data; '
+         + 'name="keep_star"; filename*=utf-8\'\'%2Fkeep%2Fthis%2Fstar.txt',
+       'Content-Type: application/octet-stream',
+       '',
+       'B',
+       '-----------------------------paZqsnEHRufoShdX6fh0lUhXBP4k--'
+      ].join('\r\n')
+    ],
+    boundary: '---------------------------paZqsnEHRufoShdX6fh0lUhXBP4k',
+    preservePath: true,
+    expected: [
+      { type: 'file',
+        name: 'keep_plain',
+        data: Buffer.from('A'),
+        info: {
+          filename: '/keep/this/plain.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+      { type: 'file',
+        name: 'keep_star',
+        data: Buffer.from('B'),
+        info: {
+          filename: '/keep/this/star.txt',
+          encoding: '7bit',
+          mimeType: 'application/octet-stream',
+        },
+        limited: false,
+      },
+    ],
+    what: 'preservePath keeps the full path for both filename forms'
+  },
 ];
 
 for (const test of tests) {
